@@ -1,0 +1,24 @@
+{
+  "APP": {
+    "TITLE": "Chat Client",
+    "ONLINE": "online",
+    "OFFLINE": "offline",
+    "SOCKET": "Socket",
+    "SERVER": "Server",
+    "CONNECTED_VIA_PROXY": "Connected via proxy",
+    "CONNECT": "Connect",
+    "CLEAR": "Clear",
+    "SEND_TEST": "Send test message"
+  },
+  "CHAT": {
+    "ROOM": "Raum",
+	"ROOMS": "Räume",
+    "CONVERSATION": "Conversation / Room",
+    "JOIN": "Join",
+    "MESSAGES": "messages",
+    "PLACEHOLDER_MESSAGE": "Write a message…",
+    "SEND": "Send",
+    "DISPLAY_NAME": "Your name (optional)",
+    "CONVERSATION_PLACEHOLDER": "conversationId (e.g. global, team, dm-123)"
+  }
+}

@@ -1,0 +1,147 @@
+<div class="chat-app"> 
+  <!-- CHAT MAIN -->
+  <main class="chat-card chat-main">
+    <div class="chat-top">
+      <div class="chat-who">
+        <div class="big">{{ activeRoomTitle }}</div>
+        <div class="small">
+          Conversation / Room
+        </div>
+      </div>
+
+      <div class="chat-pill">
+        {{ messages.length }} messages
+      </div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div class="chat-body" #scrollHost>
+      <div
+        class="chat-bubbleRow"
+        *ngFor="let m of messages"
+        [ngClass]="m.isMe ? 'me' : 'them'"
+      >
+        <div class="chat-bubble">
+          <div>{{ m.text }}</div>
+
+          <div class="chat-meta">
+            <span class="chat-tag">{{ m.label }}</span>
+            <span>{{ m.time }}</span>
+            <span class="chat-pill">{{ m.id }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPOSER -->
+    <div class="chat-composer">
+      <textarea
+        class="chat-textarea"
+        [(ngModel)]="composer"
+        (keydown.enter)="onEnter($event)"
+        [placeholder]="'CHAT.PLACEHOLDER_MESSAGE' | translate"
+      ></textarea>
+
+      <button class="chat-btn primary" (click)="send()">
+        {{ 'CHAT.SEND' | translate }}
+      </button>
+    </div>
+  </main>
+  
+  <!-- SIDEBAR -->
+  <aside class="chat-card chat-sidebar">
+    <div class="chat-header">
+      <div class="chat-title">
+        <span
+          class="chat-dot"
+          [style.background]="connected ? 'var(--good)' : 'var(--warn)'"
+        ></span>
+        {{ 'APP.TITLE' | translate }}
+      </div>
+
+      <div class="chat-sub">
+        <span>
+          Socket:
+          <span class="chat-pill">{{ socketId || '—' }}</span>
+        </span>
+        <span class="chat-pill">
+           {{ connected ? ('APP.ONLINE' | translate) : ('APP.OFFLINE' | translate) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- CONNECTION -->
+    <div class="chat-section">
+      <label class="chat-label">{{ 'APP.SERVER' | translate }}</label>
+      <div class="chat-row">
+        <!-- bleibt leer → Proxy / Same-Origin -->
+        <input
+          class="chat-input"
+          [placeholder]="'APP.CONNECTED_VIA_PROXY' | translate"
+          disabled
+        />
+        <button class="chat-btn" (click)="chat.connect()">
+          {{ 'APP.CONNECT' | translate }}
+        </button>
+      </div>
+
+      <div class="chat-row" style="margin-top: 10px">
+        <input
+          class="chat-input"
+          [(ngModel)]="displayName"
+          [placeholder]="'CHAT.DISPLAY_NAME' | translate"
+        />
+        <button class="chat-btn" (click)="clear()">
+          {{ 'APP.CLEAR' | translate }}
+        </button>
+      </div>
+	  
+	  <!-- Freitextraum für später 
+	  <div class="chat-row" style="margin-top: 10px">
+		  <input
+			class="chat-input"
+			[(ngModel)]="conversationId"
+			[placeholder]="'CHAT.CONVERSATION_PLACEHOLDER' | translate"
+		  />
+		  <button class="chat-btn" (click)="join(conversationId)">
+			{{ 'CHAT.JOIN' | translate }}
+		  </button>
+		</div>
+		--> 
+		
+		<div class="chat-row" style="margin-top: 10px">
+		  <div class="chat-section">
+			  <div class="chat-label">Rooms</div>
+
+			  <div class="room-list">
+				<button
+				  type="button"
+				  class="room-item"
+				  *ngFor="let r of rooms"
+				  [class.active]="r === activeRoomTitle"
+				  (click)="selectRoom(r)"
+				>
+				  <span class="room-name">#{{ r }}</span>
+				</button>
+			  </div>
+			</div>  
+		</div>
+		
+		<div class="chat-row">
+			<button class="chat-btn" (click)="theme.toggle()">
+				{{ theme.current === 'dark' ? '🌞 Light' : '🌙 Dark' }}
+			</button>
+		</div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="chat-logs">
+      <div class="chat-logline" *ngFor="let l of logs">
+        <b>{{ l.kind }}</b>
+        <span class="chat-pill">{{ l.time }}</span>
+        <div>{{ l.text }}</div>
+      </div>
+    </div>
+ 
+  </aside>
+</div>

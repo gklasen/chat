@@ -1,0 +1,28 @@
+{
+  "name": "chat-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Realtime chat server using Node.js, Express and Socket.io",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.7.5",
+    "zod": "^3.23.8",
+	"chat-shared": "file:../chat-shared"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.30",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  }
+}

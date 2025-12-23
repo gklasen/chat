@@ -1,0 +1,11 @@
+{
+  "name": "chat-shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./models": "./src/models.ts",
+    "./events": "./src/events.ts",
+	"./rooms": "./src/rooms.ts"
+  }
+}
