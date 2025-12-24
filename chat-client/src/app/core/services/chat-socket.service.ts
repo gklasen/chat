@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
+ 
 import type {
   ClientToServerEvents,
   ServerToClientEvents
@@ -17,6 +19,8 @@ export class ChatSocketService {
 
   private message$ = new Subject<ChatMessage>();
   private error$ = new Subject<string>();
+  
+  constructor( private auth: AuthService) {}
 
   connect(): void {
     if (this.socket) this.socket.disconnect();
@@ -74,9 +78,15 @@ export class ChatSocketService {
 	sendMessage(conversationId: string, text: string): void {
 		if (!this.socket) return;
 
-		this.socket.emit("message:send", { conversationId, text }, (ack) => {
-			if (!ack.ok) this.error$.next(ack.error);
-		});
+		const fromName = this.auth.current?.name;
+
+		this.socket.emit(
+			"message:send",
+			{ conversationId, text, fromName },
+			(ack) => {
+				if (!ack.ok) this.error$.next(ack.error);
+			}
+		);
 	}
 
   // Observables

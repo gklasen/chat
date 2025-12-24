@@ -16,6 +16,7 @@ export interface ChatMessage {
 export interface SendMessagePayload {
   conversationId: ConversationId;
   text: string;
+  fromName?: string;      // 👈 neu (Soft Login)
 }
 
 // --- server acks ---
@@ -27,5 +28,14 @@ export interface ServerError {
   ok: false;
   error: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  from: string;           // socket.id
+  fromName?: string;      // 👈 neu (Soft Login)
+  text: string;
+  ts: number;
+} 
 
 export type Ack = ServerAck | ServerError;

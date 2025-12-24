@@ -1,54 +1,77 @@
-<div class="chat-app"> 
-  <!-- CHAT MAIN -->
+<!-- Soft Login Overlay -->
+<div class="login-overlay" *ngIf="!auth.current">
+  <div class="login-card">
+    <div class="login-title">{{ 'APP.TITLE' | translate }}</div>
+    <div class="login-sub">Choose a name to join</div>
+
+    <input
+      class="chat-input"
+      [(ngModel)]="displayName"
+      placeholder="Your name (min 2 chars)"
+      (keydown.enter)="doLogin()"
+      autocomplete="nickname"
+    />
+
+    <button class="chat-btn primary" (click)="doLogin()">
+      Join Chat
+    </button>
+  </div>
+</div>
+
+<div class="chat-app">
+  <!-- MAIN (left / big) -->
   <main class="chat-card chat-main">
+    <!-- Top bar -->
     <div class="chat-top">
       <div class="chat-who">
-        <div class="big">{{ activeRoomTitle }}</div>
+        <div class="big">#{{ activeRoomTitle }}</div>
         <div class="small">
-          Conversation / Room
+          <span class="chat-pill">
+            {{ connected ? ('APP.ONLINE' | translate) : ('APP.OFFLINE' | translate) }}
+          </span>
+          <span class="chat-pill" *ngIf="socketId">{{ 'APP.SOCKET' | translate }}: {{ socketId }}</span>
         </div>
       </div>
 
-      <div class="chat-pill">
-        {{ messages.length }} messages
+      <div>
+        <button class="chat-btn" (click)="clear()">Clear</button>
       </div>
     </div>
 
-    <!-- MESSAGES -->
-    <div class="chat-body" #scrollHost>
-      <div
-        class="chat-bubbleRow"
-        *ngFor="let m of messages"
-        [ngClass]="m.isMe ? 'me' : 'them'"
-      >
+    <!-- Messages -->
+    <div class="chat-body">
+      <div *ngIf="!joinedConversationId" class="chat-logline">
+        <b>Tip:</b> Select a room on the right.
+      </div>
+
+      <div *ngFor="let m of messages" class="chat-bubbleRow" [class.me]="m.from === socketId" [class.them]="m.from !== socketId">
         <div class="chat-bubble">
           <div>{{ m.text }}</div>
 
           <div class="chat-meta">
-            <span class="chat-tag">{{ m.label }}</span>
-            <span>{{ m.time }}</span>
-            <span class="chat-pill">{{ m.id }}</span>
+            <span class="chat-tag">{{ m.fromName || m.from }}</span>
+            <span class="chat-pill">{{ m.ts | date:'shortTime' }}</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- COMPOSER -->
+    <!-- Composer (bottom) -->
     <div class="chat-composer">
       <textarea
         class="chat-textarea"
         [(ngModel)]="composer"
+        placeholder="Write a message… (Enter = send, Shift+Enter = newline)"
         (keydown.enter)="onEnter($event)"
-        [placeholder]="'CHAT.PLACEHOLDER_MESSAGE' | translate"
       ></textarea>
 
-      <button class="chat-btn primary" (click)="send()">
-        {{ 'CHAT.SEND' | translate }}
+      <button class="chat-btn primary" (click)="send()" [disabled]="!joinedConversationId || !composer.trim()">
+        Send
       </button>
     </div>
   </main>
-  
-  <!-- SIDEBAR -->
+
+  <!-- SIDEBAR (right / small) -->
   <aside class="chat-card chat-sidebar">
     <div class="chat-header">
       <div class="chat-title">
@@ -56,92 +79,52 @@
           class="chat-dot"
           [style.background]="connected ? 'var(--good)' : 'var(--warn)'"
         ></span>
-        {{ 'APP.TITLE' | translate }}
+        Chat Client
       </div>
 
       <div class="chat-sub">
-        <span>
-          Socket:
-          <span class="chat-pill">{{ socketId || '—' }}</span>
-        </span>
-        <span class="chat-pill">
-           {{ connected ? ('APP.ONLINE' | translate) : ('APP.OFFLINE' | translate) }}
-        </span>
+        <span>{{ connected ? ('APP.ONLINE' | translate) : ('APP.OFFLINE' | translate) }}</span>
+        <span *ngIf="auth.current as u">
+		  {{ u?.name || 'User' }}
+		</span>
       </div>
     </div>
 
-    <!-- CONNECTION -->
+    <!-- Rooms -->
     <div class="chat-section">
-      <label class="chat-label">{{ 'APP.SERVER' | translate }}</label>
-      <div class="chat-row">
-        <!-- bleibt leer → Proxy / Same-Origin -->
-        <input
-          class="chat-input"
-          [placeholder]="'APP.CONNECTED_VIA_PROXY' | translate"
-          disabled
-        />
-        <button class="chat-btn" (click)="chat.connect()">
-          {{ 'APP.CONNECT' | translate }}
+      <div class="chat-label">Rooms</div>
+
+      <div class="room-list">
+        <button
+          type="button"
+          class="room-item"
+          *ngFor="let r of rooms"
+          [class.active]="r === joinedConversationId"
+          (click)="selectRoom(r)"
+        >
+          <span class="room-name">#{{ r }}</span>
         </button>
       </div>
-
-      <div class="chat-row" style="margin-top: 10px">
-        <input
-          class="chat-input"
-          [(ngModel)]="displayName"
-          [placeholder]="'CHAT.DISPLAY_NAME' | translate"
-        />
-        <button class="chat-btn" (click)="clear()">
-          {{ 'APP.CLEAR' | translate }}
-        </button>
-      </div>
-	  
-	  <!-- Freitextraum für später 
-	  <div class="chat-row" style="margin-top: 10px">
-		  <input
-			class="chat-input"
-			[(ngModel)]="conversationId"
-			[placeholder]="'CHAT.CONVERSATION_PLACEHOLDER' | translate"
-		  />
-		  <button class="chat-btn" (click)="join(conversationId)">
-			{{ 'CHAT.JOIN' | translate }}
-		  </button>
-		</div>
-		--> 
-		
-		<div class="chat-row" style="margin-top: 10px">
-		  <div class="chat-section">
-			  <div class="chat-label">Rooms</div>
-
-			  <div class="room-list">
-				<button
-				  type="button"
-				  class="room-item"
-				  *ngFor="let r of rooms"
-				  [class.active]="r === activeRoomTitle"
-				  (click)="selectRoom(r)"
-				>
-				  <span class="room-name">#{{ r }}</span>
-				</button>
-			  </div>
-			</div>  
-		</div>
-		
-		<div class="chat-row">
-			<button class="chat-btn" (click)="theme.toggle()">
-				{{ theme.current === 'dark' ? '🌞 Light' : '🌙 Dark' }}
-			</button>
-		</div>
     </div>
 
-    <!-- LOGS -->
+    <!-- Actions -->
+    <div class="chat-section">
+      <div class="chat-label">Actions</div>
+
+      <div class="chat-row">
+        <button class="chat-btn" (click)="clearLogs()">Clear logs</button>
+      </div>
+
+      <div class="chat-row" style="margin-top: 10px;" *ngIf="auth.current">
+        <button class="chat-btn" (click)="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Logs -->
     <div class="chat-logs">
       <div class="chat-logline" *ngFor="let l of logs">
-        <b>{{ l.kind }}</b>
-        <span class="chat-pill">{{ l.time }}</span>
-        <div>{{ l.text }}</div>
+        <b>{{ l.tag }}</b> · {{ l.ts | date:'shortTime' }} — {{ l.text }}
       </div>
     </div>
- 
   </aside>
 </div>

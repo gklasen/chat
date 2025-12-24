@@ -1,150 +1,165 @@
-import { Component, ElementRef, ViewChild, OnDestroy, OnInit, ChangeDetectorRef  } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
+import { TranslateModule } from '@ngx-translate/core';
+
 import { ChatSocketService } from '../../../../core/services/chat-socket.service';
-import { ThemeService } from '../../../../core/services/theme.service'; 
-import type { ChatMessage } from '../../../../shared/models/chat.models';
+import { AuthService } from '../../../../core/services/auth.service';
 
-import { CHAT_ROOMS, DEFAULT_ROOM, type ChatRoomId } from "chat-shared/rooms";
+import { CHAT_ROOMS, DEFAULT_ROOM, type ChatRoomId } from 'chat-shared/rooms';
+import type { ChatMessage } from 'chat-shared/models';
 
-type UiMessage = {
-  id: string;
-  text: string;
-  isMe: boolean;
-  label: string;
-  time: string;
-};
+type LogLine = { ts: number; tag: 'client' | 'socket' | 'server'; text: string };
 
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [CommonModule, FormsModule, TranslateModule], // ✅ genau 3 Imports
   templateUrl: './chat-page.component.html',
 })
 export class ChatPageComponent implements OnInit, OnDestroy {
+  // ===== Rooms =====
+  rooms = CHAT_ROOMS;
+  conversationId: ChatRoomId = DEFAULT_ROOM;
+  joinedConversationId: ChatRoomId | null = null;
+
+  // ===== UI / State =====
   connected = false;
   socketId: string | null = null;
 
-  displayName = '';
+  // ===== Chat =====
+  messages: ChatMessage[] = [];
   composer = '';
-  logs: { kind: string; time: string; text: string }[] = [];
-  messages: UiMessage[] = [];
 
-  @ViewChild('scrollHost') scrollHost?: ElementRef<HTMLDivElement>;
+  // ===== Soft Login (wie vorher: displayName) =====
+  displayName = '';
 
-  rooms = CHAT_ROOMS;
-  conversationId: ChatRoomId = DEFAULT_ROOM;
-  private joinedConversationId: string | null = null;
-  
+  // ===== Logs =====
+  logs: LogLine[] = [];
+
   private sub = new Subscription();
 
   constructor(
-	public chat: ChatSocketService, 
-	public theme: ThemeService,
-	private cdr: ChangeDetectorRef) {}
+    public chat: ChatSocketService,
+    public auth: AuthService
+  ) {}
 
   ngOnInit(): void {
+    this.log('client', 'chat page init');
+
+    // Socket Status
+    this.sub.add(
+      this.chat.isConnected().subscribe((v: boolean) => {
+        this.connected = v;
+        this.log('socket', v ? 'connected' : 'disconnected');
+
+        // Auto-join on reconnect, wenn wir schon einen Raum hatten
+        if (v && this.joinedConversationId) {
+          this.chat.joinConversation(this.joinedConversationId);
+          this.log('socket', `re-join #${this.joinedConversationId}`);
+        }
+      })
+    );
+
+    this.sub.add(
+      this.chat.socketId().subscribe((id: string | null) => {
+        this.socketId = id;
+      })
+    );
+
+    // Incoming messages
+    this.sub.add(
+      this.chat.messages().subscribe((m: ChatMessage) => {
+        // Safety: nur anzeigen, wenn es der aktive Raum ist
+        if (this.joinedConversationId && m.conversationId !== this.joinedConversationId) return;
+        this.messages.push(m);
+      })
+    );
+
+    // Start socket
     this.chat.connect();
-
-    this.sub.add(this.chat.isConnected().subscribe(v => {
-		this.connected = v;
-		
-		if (v) { 
-			this.join(this.conversationId);
-		} else {
-			this.joinedConversationId = null;
-		}		
-		
-		this.cdr.detectChanges();   // oder markForCheck()
-	}));
-	
-    this.sub.add(this.chat.socketId().subscribe(id => {
-		this.socketId = id;
-		this.cdr.detectChanges();
-	}));
-	
-    this.sub.add(this.chat.errors().subscribe(e => {
-		this.log('error', e)
-		this.cdr.detectChanges();
-	}));
-
-    this.sub.add(this.chat.messages().subscribe((m: ChatMessage) => {
-		const isMe = !!this.socketId && m.from === this.socketId;
-		const label = isMe ? (this.displayName.trim() || 'You') : 'Other';
-		this.messages.push({
-			id: m.id,
-			text: m.text,
-			isMe,
-			label,
-			time: new Date(m.ts).toLocaleTimeString(),
-		});
-		this.scrollToBottom();
-		this.cdr.detectChanges();
-    }));
-
-    this.log('client', 'connected via proxy (/socket.io)');
   }
-  
-	selectRoom(r: ChatRoomId): void {
-	  this.conversationId = r;
-	  this.join(r);
-	}
 
   ngOnDestroy(): void {
     this.sub.unsubscribe();
   }
 
-	send(): void {
-		this.chat.sendMessage(this.conversationId, this.composer);
-		this.composer = '';
-	}
-	
-	join(id: string): void {
-		const next = id.trim();
-		if (!next) return;
-
-		// alten Room verlassen
-		if (this.joinedConversationId && this.joinedConversationId !== next) {
-			this.chat.leaveConversation(this.joinedConversationId);
-		}
-
-		this.chat.joinConversation(next);
-		this.joinedConversationId = next;
-
-		// optional: UI leeren beim Roomwechsel
-		this.messages = [];
-		this.log('client', `joined room: ${next}`);
-	}
-	
-	get activeRoomTitle(): string {
-		return this.joinedConversationId ?? '—';
-	}
-
-  onEnter(e: Event): void {
-	const ke = e as KeyboardEvent;
-
-	if (ke.shiftKey) return;
-	ke.preventDefault();
-	this.send();
-	}
-
-  clear(): void {
-    this.messages = [];
-    this.logs = [];
-    this.log('client', 'cleared');
-  } 
-
-  private log(kind: string, text: string): void {
-    this.logs.push({ kind, time: new Date().toLocaleTimeString(), text });
-    if (this.logs.length > 300) this.logs.shift();
+  // ===== Helpers =====
+  get activeRoomTitle(): string {
+    return this.joinedConversationId ?? this.conversationId ?? DEFAULT_ROOM;
   }
 
-  private scrollToBottom(): void {
-    requestAnimationFrame(() => {
-      const el = this.scrollHost?.nativeElement;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+  private log(tag: LogLine['tag'], text: string): void {
+    this.logs.unshift({ ts: Date.now(), tag, text });
+    if (this.logs.length > 200) this.logs.length = 200;
+  }
+
+  // ===== Soft Login =====
+  doLogin(): void {
+    const ok = this.auth.login(this.displayName);
+    if (!ok) {
+      this.log('client', 'login failed (name too short?)');
+      return;
+    }
+
+    this.displayName = '';
+    this.log('client', 'login ok');
+
+    // nach Login direkt in den Default/gewählten Raum
+    this.selectRoom(this.conversationId);
+  }
+
+  logout(): void {
+    this.auth.logout();
+    this.joinedConversationId = null;
+    this.messages = [];
+    this.log('client', 'logout');
+  }
+
+  // ===== Rooms (Click = Join, kein Join-Button) =====
+  selectRoom(r: ChatRoomId): void {
+    this.conversationId = r;
+
+    // leave previous
+    if (this.joinedConversationId && this.joinedConversationId !== r) {
+      this.chat.leaveConversation(this.joinedConversationId);
+      this.log('socket', `leave #${this.joinedConversationId}`);
+    }
+
+    // join new
+    this.chat.joinConversation(r);
+    this.joinedConversationId = r;
+
+    // optional: Messages beim Raumwechsel leeren (wie wir es öfter gemacht haben)
+    this.messages = [];
+    this.log('socket', `join #${r}`);
+  }
+
+  // ===== Messaging =====
+  send(): void {
+    const text = this.composer.trim();
+    if (!text) return;
+    if (!this.joinedConversationId) return;
+
+    this.chat.sendMessage(this.joinedConversationId, text);
+    this.composer = '';
+  }
+
+  onEnter(e: Event): void {
+    const ke = e as KeyboardEvent;
+    if (ke.shiftKey) return;
+    ke.preventDefault();
+    this.send();
+  }
+
+  // ===== UI Buttons =====
+  clear(): void {
+    this.messages = [];
+    this.log('client', 'clear messages');
+  }
+
+  clearLogs(): void {
+    this.logs = [];
   }
 }

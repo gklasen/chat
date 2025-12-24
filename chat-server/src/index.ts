@@ -62,17 +62,16 @@ io.on("connection", (socket) => {
     if (!text) return ack({ ok: false, error: "empty message" });
 
     const msg = {
-      id: crypto.randomUUID(),
-      conversationId,
-      from: socket.id,
-      text,
-      ts: Date.now(),
-    };
-
-    // ✅ Nur in den Room senden
-    io.to(conversationId).emit("message:new", msg);
-
-    ack({ ok: true });
+	  id: crypto.randomUUID(),
+	  conversationId,
+	  from: socket.id,
+	  fromName: payload?.fromName?.trim() || undefined, // 👈 neu
+	  text,
+	  ts: Date.now(),
+	};
+ 
+	io.to(conversationId).emit("message:new", msg);
+	ack({ ok: true });
   });
 });
 
